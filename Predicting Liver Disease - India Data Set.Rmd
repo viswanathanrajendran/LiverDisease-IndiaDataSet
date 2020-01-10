@@ -1,0 +1,270 @@
+---
+title: 'Predicting Liver Disease: Capstone Submission'
+author: "Viswanathan Rajendran"
+date: "1/10/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 1. Executive Summary
+
+### 1.1 Introduction 
+This paper describes an attempt to build an algorithm to predict the likely incidence of Liver Disease in patients. Our exercise examines data from liver patients concentrating on relationships between a key list of liver enzymes, proteins, age and gender using them to try and predict the likeliness of liver disease. 
+
+Models which use existing data to estimate risk of serious diseases can add substantial value to already over burdened healthcare systems. Even if our model can only achieve a limited predictive ability, it can still serve as an aid to determin when to look deeper. Patient datasets can be used to evaluate prediction algorithms in an effort to reduce burden on doctors.
+
+
+### 1.2 Introducing the Dataset
+This data set contains 416 liver patient records and 167 non liver patient records collected from North East of Andhra Pradesh, India. The "Dataset" column is a class label used to divide groups into liver patient (liver disease) or not (no disease). This data set contains 441 male patient records and 142 female patient records.
+
+Any patient whose age exceeded 89 is listed as being of age "90".
+
+Columns:
+-> Age of the patient
+-> Gender of the patient
+-> Total Bilirubin
+-> Direct Bilirubin
+-> Alkaline Phosphotase
+-> Alamine Aminotransferase
+-> Aspartate Aminotransferase
+-> Total Protiens
+-> Albumin
+-> Albumin and Globulin Ratio
+-> Dataset: field used to split the data into two sets (patient with liver disease, or no disease)
+
+### 1.3 Acknowledgment
+This dataset was downloaded from the UCI ML Repository:
+
+Lichman, M. (2013). UCI Machine Learning Repository [http://archive.ics.uci.edu/ml]. Irvine, CA: University of California, School of Information and Computer Science.
+
+### 1.4 Objectives
+The objective of this exercise is to train a machine learning model in R that can use these patient records to help "predict" to determine which patients have liver disease and which ones do not.
+
+As an India based student, the motivation for selecting this data set arises from an interest in exploring data sets that originate from India. 
+
+### 1.5 Outcomes
+This exercise adopts multiple different methods (Logistic Regression, LDA, QDA, KNN, Classification Tree, and Random Forest) to determine which patients have liver disease and which dont. Amongst all these methods, we find that the Classification Tree offers the greatest level of accuracy at 0.763, and the QDA offers the lowest level of accuracy at 0.458.
+
+\pagebreak
+# 2. Methods and Analysis
+
+### 2.1 Data download and preparation
+As a first step, we include all requisite libraries, and access the downloaded data in the file "indian_liver_patient.csv" from the local folder.
+
+```{r, message=FALSE, warning=FALSE}
+if(!require(ggplot2)) install.packages("ggplot2", repos = "http://cran.us.r-project.org")
+if(!require(lubridate)) install.packages("lubridate", repos = "http://cran.us.r-project.org")
+if(!require(tidyr)) install.packages("tidyr", repos = "http://cran.us.r-project.org")
+if(!require(stringr)) install.packages("stringr", repos = "http://cran.us.r-project.org")
+if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
+if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
+if(!require(data.table)) install.packages("data.table", repos = "http://cran.us.r-project.org")
+if(!require(dplyr)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
+if(!require(randomForest)) install.packages("randomForest", repos = "http://cran.us.r-project.org")
+if(!require(rpart)) install.packages("rpart", repos = "http://cran.us.r-project.org")
+
+# Read the data file from local folder
+sourcedata <- read.csv("./indian_liver_patient.csv")
+
+```
+
+### 2.2 Data cleaning
+The data in the file has already been made available in a cleaned and ready to use format, and hence does not need any further need for cleaning. However, to facilitate the eventual predictive modeling, it will help us to convert the numeric Dataset field into a factor.
+
+```{r, message=FALSE, warning=FALSE}
+# Convert to factor
+sourcedata$Dataset<-factor(sourcedata$Dataset, levels = c(1,2), labels=c("No", "Yes"))
+
+```
+
+### 2.3 Data exploration, visualization and key insights gained
+
+The following sets of analyses provide a good overview into the structure of the overall dataset.
+```{r, message=FALSE, warning=FALSE}
+# High level exploratory analysis
+head(sourcedata)
+table(sourcedata$Dataset)
+str(sourcedata)
+summary(sourcedata)
+
+```
+
+
+
+### 2.4 Modeling approach adopted
+
+Our overall objective for this exercise is to attempt multiple different supervised machine learning methods (Logistic Regression, LDA, QDA, KNN, Classification Tree, and Random Forest), and then identify the most accurate method that can determine which patients have liver disease and which dont. 
+
+### 2.4.1 Preparing the training and test data sets
+The first step in the modeling approach is to define the training and test data sets. The code below splits 90% of the total data into the training set, and the remaining 10% into the test set.
+```{r, message=FALSE, warning=FALSE}
+# Create test and train datasets
+set.seed(1, sample.kind="Rounding")
+samplesize <- floor(0.9 * nrow(sourcedata))
+index <- sample(seq_len(nrow(sourcedata)), size = samplesize)
+train_set <- sourcedata[index, ]
+test_set = sourcedata[-index, ]
+
+```
+
+
+### 2.4.2 Building the first model: Logistic Regression Model
+
+The first model we develop in this exercise is the Logistic Regression model - based on the caret package.
+
+```{r, message=FALSE, warning=FALSE}
+# Logistic Regression Model
+set.seed(1, sample.kind="Rounding")
+log_model <- train(Dataset ~ Total_Bilirubin + Alkaline_Phosphotase + Alamine_Aminotransferase + Total_Protiens + Albumin + Age, data = train_set, method = "glm")
+log_preds <- predict(log_model, test_set)
+log_accuracy <- mean(log_preds == test_set$Dataset)
+summary(log_model)
+model_results <- tibble(method = "Logistic Regression", Accuracy = log_accuracy)
+
+```
+
+We publish the results of the modeling below:
+
+```{r, message=FALSE, warning=FALSE}
+# Outcomes of Linear Determinant Analysis approach (LDA)
+summary(log_model)
+model_results
+```
+
+### 2.4.3 Linear Determinant Analysis
+The third model in our exercise is based on the Linear Determinant Analysis approach.
+
+```{r, message=FALSE, warning=FALSE}
+# LDA Model
+set.seed(1, sample.kind="Rounding")
+lda_model <- train(Dataset ~ Total_Bilirubin + Alkaline_Phosphotase + Alamine_Aminotransferase + Total_Protiens + Albumin + Age, data = train_set, method = "lda")
+lda_preds <- predict(lda_model, test_set)
+lda_accuracy <- mean(lda_preds == test_set$Dataset)
+model_results<-add_row(model_results,method = "Linear Discriminant Analysis", Accuracy = lda_accuracy)
+
+```
+
+We publish the results of the modeling below:
+
+```{r, message=FALSE, warning=FALSE}
+# Outcomes of Linear Determinant Analysis (LDA)
+summary(lda_model)
+model_results
+```
+
+
+### 2.4.4 Quadratic Determinant Analysis
+The next model in our exercise is based on the Quadratic Determinant Analysis approach.
+
+```{r, message=FALSE, warning=FALSE}
+
+# QDA Model
+set.seed(1, sample.kind="Rounding")
+qda_model <- train(Dataset ~ Total_Bilirubin + Alkaline_Phosphotase + Alamine_Aminotransferase + Total_Protiens + Albumin + Age, data = train_set, method = "qda")
+qda_preds <- predict(qda_model, test_set)
+qda_accuracy <- mean(qda_preds == test_set$Dataset)
+model_results<-add_row(model_results,method = "Quadratic Discriminant Analysis", Accuracy = qda_accuracy)
+```
+
+We publish the results of the modeling below:
+
+```{r, message=FALSE, warning=FALSE}
+# Outcomes of Quadratic Determinant Analysis (QDA)
+summary(qda_model)
+model_results
+```
+
+### 2.4.5 k-Nearest Neighbors Approach
+The next model in our exercise is based on the KNN approach.
+
+```{r, message=FALSE, warning=FALSE}
+# KNN Model
+set.seed(1, sample.kind="Rounding")
+knn_model <- train(Dataset ~ Total_Bilirubin + Alkaline_Phosphotase + Alamine_Aminotransferase + Total_Protiens + Albumin + Age, data = train_set, method = "knn",
+                   tuneGrid = data.frame(k = seq(1, 50, 2)))
+knn_preds <- predict(knn_model, test_set)
+knn_accuracy <- mean(knn_preds == test_set$Dataset)
+model_results<-add_row(model_results,method = "KNN", Accuracy = knn_accuracy)
+
+```
+
+We publish the results of the modeling below:
+
+```{r, message=FALSE, warning=FALSE}
+# Outcomes of kNN
+summary(knn_accuracy)
+model_results
+```
+
+
+### 2.4.6 Classification Trees
+The next model in our exercise is based on the Classification Tree approach.
+```{r, message=FALSE, warning=FALSE}
+
+# Classification Tree Model
+set.seed(1, sample.kind="Rounding")
+tree_model <- train(Dataset ~ Total_Bilirubin + Alkaline_Phosphotase + Alamine_Aminotransferase + Total_Protiens + Albumin + Age, data = train_set, method = "rpart",
+                    tuneGrid = data.frame(cp = seq(0, 0.05, 0.002)))
+tree_preds <- predict(tree_model, test_set)
+tree_accuracy <- mean(tree_preds == test_set$Dataset)
+model_results<-add_row(model_results,method = "Classification Tree", Accuracy = tree_accuracy)
+
+```
+
+We publish the results of the modeling below:
+
+```{r, message=FALSE, warning=FALSE}
+# Outcomes of Classification Tree approach
+summary(tree_accuracy)
+model_results
+```
+
+###  2.4.7 Random Forest
+The final model in our exercise is based on the Random Forest approach.
+```{r, message=FALSE, warning=FALSE}
+
+# Random Forest Model
+set.seed(1, sample.kind="Rounding")
+forest_model <- train(Dataset ~ Total_Bilirubin + Alkaline_Phosphotase + Alamine_Aminotransferase + Total_Protiens + Albumin + Age, data = train_set, method = "rf",
+                      tuneGrid = data.frame(mtry = seq(1:7)))
+forest_preds <- predict(forest_model, test_set)
+forest_accuracy <- mean(forest_preds == test_set$Dataset)
+model_results<-add_row(model_results,method = "Random Forest", Accuracy = forest_accuracy)
+
+```
+
+We publish the results of the modeling below:
+
+```{r, message=FALSE, warning=FALSE}
+# Outcomes of Random Forest approach
+summary(forest_accuracy)
+model_results
+```
+
+# 3. Results
+The overall results from the exercise are summarized below:
+
+```{r rmse_results, message=FALSE, warning=FALSE}
+model_results
+
+```
+
+As can be seen from the results, the Classification Tree offers the greatest level of accuracy at 0.763, and the QDA offers the lowest level of accuracy at 0.458.
+
+\pagebreak
+# 4. Conclusions
+
+### 4.1 Report Summary
+The objective of this exercise is to train a machine learning model in R that can use  patient records to help "predict" which patients have liver disease and which ones do not.
+This exercise adopted multiple different methods (Logistic Regression, LDA, QDA, KNN, Classification Tree, and Random Forest) to determine the same. Amongst all these methods, we find that the Classification Tree offers the greatest level of accuracy at 0.763, and the QDA offers the lowest level of accuracy at 0.458.
+
+### 4.2 Limitations
+This exercise is based on a limited dataset from a narrow geography: 416 liver patient records and 167 non liver patient records collected from North East of Andhra Pradesh, India. While this sample size is adequate for the academic purpose of testing various algorithms with limited computing power, in a real world scenario - developing a robust disease prediction tool will require significantly larger amounts of patient data.
+
+### 4.3 Future Work
+A logical next step from this paper should be an attempt to replicate the analysis on a much larger dataset, and then attempt options for further optimization to drive overall accuracy.
+
+As discussed in the beginning, aggregate analysis from large collections of patient data records can add substantial value to overburdened healthcare systems. With this overall direction, efforts such as this can start delivering substantial cost and quality of life benefits to healthcare systems and patients alike. 
